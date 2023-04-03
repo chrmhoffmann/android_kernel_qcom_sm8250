@@ -191,7 +191,7 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	char dummy;
 	int err;
 	int __argc;
-	char *_argv[10];
+	char *_argv[15];//bug 727729,zhaizhenhong.wt,MOD,CID174053: Function "default_key_ctr"out-of-bound write
 	bool is_legacy = false;
 
 	if (argc >= 4 && !strcmp(argv[0], "AES-256-XTS")) {
@@ -307,7 +307,11 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	dun_bytes = DIV_ROUND_UP(fls64(dkc->max_dun), 8);
 
 	err = blk_crypto_init_key(&dkc->key, raw_key, raw_key_size,
+#ifdef CONFIG_FSCRYPT_SDP
+				  dkc->is_hw_wrapped, false, cipher->mode_num,
+#else
 				  dkc->is_hw_wrapped, cipher->mode_num,
+#endif
 				  dun_bytes, dkc->sector_size);
 	if (err) {
 		ti->error = "Error initializing blk-crypto key";
@@ -315,7 +319,11 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	err = blk_crypto_start_using_mode(cipher->mode_num, dun_bytes,
+#ifdef CONFIG_FSCRYPT_SDP
+					  dkc->sector_size, dkc->is_hw_wrapped, false,
+#else
 					  dkc->sector_size, dkc->is_hw_wrapped,
+#endif
 					  dkc->dev->bdev->bd_queue);
 	if (err) {
 		ti->error = "Error starting to use blk-crypto";
